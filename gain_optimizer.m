@@ -3,7 +3,7 @@ clear; clc;
 
 % 1. Setup Initial Guess [kp_lat, kd_lat, kp_head, kd_head]
 % Removed the 5th extra value from your original guess
-initial_guess = [0.2, 0.1, 0.1, 0.2, 0.02]; 
+initial_guess = [0.2, 0.1, 0.1, 0.2, 0.02, 0.5]; 
 
 % 2. Setup Pattern Search Options 
 % This replaces optimset. 'UseParallel' is great if you have a multi-core CPU.
@@ -11,7 +11,7 @@ options = optimoptions('patternsearch', ...
     'Display', 'iter', ...
     'FunctionTolerance', 1e-1, ...
     'StepTolerance', 1e-3, ...
-    'MaxIterations', 1000, ...
+    'MaxIterations', 100, ...
     'PlotFcn', @psplotbestf); % This gives you a nice live graph of the cost
 
 disp('Starting Pattern Search Optimization...');
@@ -20,11 +20,11 @@ disp('Starting Pattern Search Optimization...');
 % patternsearch handles the "cliffs" of Simulink much better than fminsearch
 
 % 1. Define Lower Bounds (Gains should never be negative)
-lb = [0, 0.03, 0, 0, 0.075]; 
+lb = [0.0, 0.03, 0.0, 0.0, 0.075, 0.0]; 
 
 % 2. Define Upper Bounds (Adjust based on what feels sane for your car)
 % [kp_lat, kd_lat, ki_lat, kp_head, kd_head]
-ub = [0.2, 2, 1, 3, 1]; 
+ub = [0.2, 2.0, 1.0, 3.0, 1.0, 10.0]; 
 
 % 3. Run the Solver with bounds
 [optimal_gains, final_cost] = patternsearch(@vehicle_cost_function, initial_guess, ...
@@ -38,6 +38,7 @@ fprintf('Optimal kd_lat (Lat Rate):  %.4f\n', optimal_gains(2));
 fprintf('Optimal ki_lat (Lat Error):  %.4f\n', optimal_gains(3));
 fprintf('Optimal kp_head (Heading):  %.4f\n', optimal_gains(4));
 fprintf('Optimal kd_head (Head Rate):%.4f\n', optimal_gains(5));
+fprintf('Optimal kp_ff (Feedfwd):%.4f\n', optimal_gains(6));
 fprintf('Final Cost:                 %.4f\n', final_cost);
 fprintf('=================================\n');
 
@@ -49,6 +50,7 @@ function cost = vehicle_cost_function(gains)
     assignin('base', 'ki_lat',  gains(3));
     assignin('base', 'kp_head', gains(4));
     assignin('base', 'kd_head', gains(5));
+    assignin('base', 'kp_ff', gains(6));
 
     try
         out = sim('CAVFinal', 'CaptureErrors', 'on', 'StopTime', '20');
